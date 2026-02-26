@@ -7,8 +7,6 @@ import os
 import base64
 import cv2
 import struct
-import socket
-import threading
 
 class HideStreamApp(tk.Tk):
     def __init__(self):
@@ -38,85 +36,6 @@ class HideStreamApp(tk.Tk):
         tk.Button(self, text="Video Steganography", width=30, height=2, font=("Segoe UI", 14), 
                   command=lambda: self.select_steganography_type("video")).pack(pady=10)
 
-    def send_stego_file(self, filepath, host, port=5000):
-    try:
-        self.set_status("Connecting to receiver...")
-
-        s = socket.socket()
-        s.connect((host, port))
-
-        filename = os.path.basename(filepath).encode()
-        filesize = os.path.getsize(filepath)
-
-        # send filename length + filename
-        s.send(len(filename).to_bytes(4, 'big'))
-        s.send(filename)
-
-        # send file size
-        s.send(filesize.to_bytes(8, 'big'))
-
-        # send file data
-        with open(filepath, 'rb') as f:
-            while True:
-                data = f.read(4096)
-                if not data:
-                    break
-                s.sendall(data)
-
-        s.close()
-        self.set_status("✅ File sent successfully")
-        messagebox.showinfo("Success", "Stego file sent to receiver!")
-
-    except Exception as e:
-        messagebox.showerror("Error", f"Send failed: {e}")
-
-    def start_receiver(self, save_folder="received_files", port=5000):
-    os.makedirs(save_folder, exist_ok=True)
-
-    def receive():
-        try:
-            self.set_status("📡 Receiver listening...")
-
-            s = socket.socket()
-            s.bind(('0.0.0.0', port))
-            s.listen(1)
-
-            conn, addr = s.accept()
-            self.set_status(f"Connected from {addr}")
-
-            # receive filename
-            name_len = int.from_bytes(conn.recv(4), 'big')
-            filename = conn.recv(name_len).decode()
-
-            # receive file size
-            filesize = int.from_bytes(conn.recv(8), 'big')
-
-            save_path = os.path.join(save_folder, filename)
-
-            # receive file data
-            with open(save_path, 'wb') as f:
-                received = 0
-                while received < filesize:
-                    data = conn.recv(4096)
-                    if not data:
-                        break
-                    f.write(data)
-                    received += len(data)
-
-            conn.close()
-            s.close()
-
-            self.set_status("✅ File received")
-
-            # 🔥 AUTO-DECODE TRIGGER
-            self.file_path = save_path
-            messagebox.showinfo("Received", f"File received: {filename}")
-
-        except Exception as e:
-            messagebox.showerror("Receiver Error", str(e))
-
-    threading.Thread(target=receive, daemon=True).start()
-    
     def select_steganography_type(self, steg_type):
         self.steg_type = steg_type
         self.page2()
